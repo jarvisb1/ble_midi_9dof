@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"name": "ble_midi_9dof",
+			"path": "."
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"limits": "cpp"
+		}
+	}
+}
