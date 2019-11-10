@@ -18,6 +18,25 @@
   #include <SoftwareSerial.h>
 #endif
 
+/****************************************
+ * CONFIGURATION SETTINGS
+ ***************************************/
+#define SET_BLE_NAME (1)
+String ble_name = "Motion Midi 0"; // The name that gets advertised by the BLE chip
+
+#define HISTORY_DEPTH (5)   // The number of readings to average together before deciding which note to play. Lower numbers make the notes more responsive, but also more erratic. Higher numbers are more smooth, but slower to react to motion.
+#define READ_SLEEP_MS (100) // This limits how frequently you read from the sensor (milliseconds)
+#define SEND_SLEEP_MS (100) // This limits how frequently you send output (milliseconds)
+#define ALWAYS_SEND (0)     // Set to 1 to always send a MIDI note regardless of if there's movement. Set to 0 to require movement to send a note.
+
+//These three values are used to mute one of the sensor dimensions' contribution to the notes being played.
+//Set any of them to 0 to mute that particular dimension from being played. Set to 1 to include it in the notes being played.
+#define PLAY_ROLL_NOTES     (1)
+#define PLAY_PITCH_NOTES    (1)
+#define PLAY_HEADING_NOTES  (1)
+
+/* END OF CONFIGURATION - DON'T CHANGE STUFF BELOW HERE */
+
 //BLE SETTINGS
 #define BLE_FACTORY_RESET_ENABLE  0 //If 1, the BLE device will factory reset and will revert any custom device name you've programmed into it. Avoid this unless something's really gone wrong in the BLE chip.
 #define MINIMUM_FIRMWARE_VERSION  "0.7.0"
@@ -60,8 +79,8 @@ void BleMidiRX(uint16_t timestamp, uint8_t status, uint8_t byte1, uint8_t byte2)
 }
 
 //9-DOF board configuration - shouldn't need to change this
-#define LSM9DS1_M	  0x1E // Would be 0x1C if SDO_M is LOW
-#define LSM9DS1_AG	0x6B // Would be 0x6A if SDO_AG is LOW
+#define LSM9DS1_M    0x1E // Would be 0x1C if SDO_M is LOW
+#define LSM9DS1_AG  0x6B // Would be 0x6A if SDO_AG is LOW
 
 // Earth's magnetic field varies by location. Add or subtract 
 // a declination to get a more accurate heading. Calculate 
@@ -69,7 +88,6 @@ void BleMidiRX(uint16_t timestamp, uint8_t status, uint8_t byte1, uint8_t byte2)
 // http://www.ngdc.noaa.gov/geomag-web/#declination
 #define DECLINATION -10.31 // Declination (degrees) in Fairfax, VA
 
-#define HISTORY_DEPTH 5
 float heading_history[HISTORY_DEPTH];
 float pitch_history[HISTORY_DEPTH];
 float roll_history[HISTORY_DEPTH];
@@ -121,6 +139,18 @@ void setup_ble_midi()
   Serial.println("Requesting Bluefruit info:");
   /* Print Bluefruit information */
   ble.info();
+
+  //Set the BLE name if SET_BLE_NAME is 1
+  if (SET_BLE_NAME)
+  {
+    String ble_name_command = String("AT+GAPDEVNAME=" + ble_name);
+    
+    // Send command
+    ble.println(ble_name_command.c_str());
+
+    // Check response status
+    ble.waitForOK();
+  }
 
   /* Set BLE callbacks */
   ble.setConnectCallback(connected);
@@ -328,16 +358,6 @@ void print_notes()
 
 unsigned long last_read_time = 0;
 unsigned long last_send_time = 0;
-#define READ_SLEEP_MS (100) // This limits how frequently you read from the sensor (milliseconds)
-#define SEND_SLEEP_MS (100) // This limits how frequently you send output (milliseconds)
-#define ALWAYS_SEND (0)     // Set to 1 to always send a MIDI note regardless of if there's movement. Set to 0 to require movement to send a note.
-
-//These three values are used to mute one of the sensor dimensions' contribution to the notes being played.
-//Set any of them to 0 to mute that particular dimension from being played. Set to 1 to include it in the notes being played.
-#define PLAY_ROLL_NOTES     (1)
-#define PLAY_PITCH_NOTES    (1)
-#define PLAY_HEADING_NOTES  (1)
-
 void loop()
 {
   ble_tick();
